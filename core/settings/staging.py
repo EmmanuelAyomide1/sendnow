@@ -1,18 +1,44 @@
-from email.policy import default
-from pickle import FALSE
 from .base import *
 
-DEBUG = config("DEBUG", default=FALSE)
+DEBUG = config("DEBUG", default=False)
+
+
+ALLOWED_HOSTS = [
+    "localhost",
+    ".render.com",
+    ".now.sh",
+    ".onrender.com",
+    "127.0.0.1"
+]
+
+
+# CORS CONFIGURATION
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:5173"
+    # "https://frontend.app",
+]
+
+CORS_ORIGIN_WHITELIST = (
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:8000",
+    # "https://frontend.app",
+)
+
+CSRF_TRUSTED_ORIGINS = [
+    # "https://frontend.app",
+    "https://localhost:3000",
+    "http://localhost:5173"
+]
+
 
 INSTALLED_APPS += [
     "corsheaders",
 ]
 
-# DATABASE_URL = config("DATABASE_URL")
 
-# DATABASES = {
-#     "default": dj_database_url.parse(
-#         DATABASE_URL,
-#         conn_max_age=600,
-#     ),
-# }
+MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+] + MIDDLEWARE

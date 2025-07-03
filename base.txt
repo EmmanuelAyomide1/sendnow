@@ -1,8 +1,8 @@
 asgiref==3.8.1
 dj-database-url==2.1.0
 Django==5.0.4
+django-seed==0.3.1
 djangorestframework==3.15.1
-djangorestframework_simplejwt==5.5.0
 drf-yasg==1.21.7
 Faker==37.4.0
 inflection==0.5.1
