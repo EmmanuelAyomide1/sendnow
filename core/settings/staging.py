@@ -1,6 +1,6 @@
 from .base import *
 
-DEBUG = config("DEBUG", default=False)
+DEBUG = config("DEBUG", cast=bool)
 
 
 ALLOWED_HOSTS = [
