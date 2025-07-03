@@ -5,6 +5,7 @@ DEBUG = config("DEBUG", cast=bool)
 
 ALLOWED_HOSTS = [
     "localhost",
+    "sendnow-kcxx.onrender.com",
     ".render.com",
     ".now.sh",
     ".onrender.com",
