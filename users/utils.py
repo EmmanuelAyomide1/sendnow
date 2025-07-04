@@ -16,7 +16,6 @@ def send_OTP_using_vonage(phone_number, otp):
     url = "https://messages-sandbox.nexmo.com/v1/messages"
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Basic {config('BULKSMS_API_KEY')}"
     }
     data = {
         "to": phone_number,
