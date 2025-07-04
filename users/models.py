@@ -3,6 +3,7 @@ import re
 import random
 import uuid
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.conf import settings
 from django.db import models
@@ -16,12 +17,11 @@ class CustomUserManager(BaseUserManager):
         Phone number validation
         """
         if not phone_number:
-            raise ValueError('Phone number is required')
+            raise DjangoValidationError('Phone number is required')
 
-        # Basic validation - adjust regex based on your phone number format requirements
         phone_regex = re.compile(r'^\+?1?\d{9,15}$')
         if not phone_regex.match(phone_number):
-            raise ValueError('Enter a valid phone number')
+            raise DjangoValidationError('Enter a valid phone number')
 
         return phone_number
 

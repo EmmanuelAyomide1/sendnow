@@ -23,7 +23,7 @@ class SignUpSerializer(serializers.ModelSerializer):
                 phone_number=validated_data['phone_number'],
                 phone_verified=True
             ).first()
-            or get_user_model().objects.create(**validated_data)
+            or get_user_model().objects.create_user(**validated_data)
         )
 
 

@@ -8,6 +8,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from rest_framework import views, status
 
+from core.utils import custom_exception_handler
+from users.utils import send_OTP_using_vonage
+
 from .models import Otp
 from .serializers import (
     LogoutSerializer,
@@ -42,7 +45,7 @@ class SignUpView(views.APIView):
                 examples={
                     "application/json":
                         {
-                            "phone_number": ["Enter a valid Phone Number."],
+                            "phone_number": ["Enter a valid Phone number."],
                         }
                 }
             ),
@@ -57,15 +60,17 @@ class SignUpView(views.APIView):
         user = serializer.instance
         otp_obj = Otp.generate_otp(user=user)
 
-        # send_verification_email(
-        #     name=user.name,
-        #     email=user.email,
-        #     otp=otp_obj.otp
-        # )
+        sent = send_OTP_using_vonage(
+            phone_number=serializer.validated_data['phone_number'],
+            otp=otp_obj.otp
+        )
         print("OTP sent to user", {
             "phone_number": user.phone_number,
             "otp": otp_obj.otp
         })
+
+        if not sent:
+            return Response({'message': 'Enter a valid Phone number'}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
             {"message": "OTP sent successfully, check your message for verification"},
@@ -99,7 +104,7 @@ class ResendOTPView(views.APIView):
                 examples={
                     "application/json": {
                         "phone_number": "Phone Number does not exist.",
-                        "phine_number": "Enter a valid Phone Number."
+                        "phine_number": "Enter a valid Phone number."
                     }
                 }
             ),
@@ -111,15 +116,17 @@ class ResendOTPView(views.APIView):
 
         user = serializer.user
         otp_obj = Otp.generate_otp(user=user)
-        # send_verification_email(
-        #     name=user.name,
-        #     email=user.email,
-        #     otp=otp_obj.otp
-        # )
+        sent = send_OTP_using_vonage(
+            phone_number=serializer.validated_data['phone_number'],
+            otp=otp_obj.otp
+        )
         print("OTP resent to user", {
             "phone_number": user.phone_number,
             "otp": otp_obj.otp
         })
+
+        if not sent:
+            return Response({'message': 'Enter a valid Phone number'}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({'message': 'OTP resent successfully'}, status=status.HTTP_200_OK)
 
