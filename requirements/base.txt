@@ -16,5 +16,5 @@ sqlparse==0.5.3
 toposort==1.10
 typing_extensions==4.14.0
 tzdata==2025.2
-requests=2.32.4
+requests==2.32.4
 uritemplate==4.2.0
