@@ -13,8 +13,6 @@ class SignUpSerializer(serializers.ModelSerializer):
         fields = ["phone_number",]
 
     def validate_phone_number(self, value):
-        if get_user_model().objects.filter(phone_number=value).exists():
-            raise serializers.ValidationError("Phone Number already exists")
         return value
 
     def create(self, validated_data):
