@@ -16,10 +16,10 @@ class SignUpSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
+        print(validated_data['phone_number'])
         return (
             get_user_model().objects.filter(
                 phone_number=validated_data['phone_number'],
-                phone_verified=True
             ).first()
             or get_user_model().objects.create_user(**validated_data)
         )
