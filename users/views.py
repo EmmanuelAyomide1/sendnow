@@ -6,6 +6,7 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
+from rest_framework.serializers import ValidationError
 from rest_framework import views, status
 
 from core.utils import custom_exception_handler
@@ -72,8 +73,10 @@ class SignUpView(views.APIView):
         if not sent:
             return Response({'message': 'Enter a valid Phone number'}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response(
-            {"message": "OTP sent successfully, check your message for verification"},
+        return Response({
+            "message": "OTP sent successfully, check your message for verification",
+            "new_user": not user.phone_verified
+        },
             status=status.HTTP_201_CREATED,
         )
 
