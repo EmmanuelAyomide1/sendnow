@@ -1,30 +1,39 @@
+from django.contrib.auth import authenticate
 from django.db import transaction
-from django.shortcuts import get_object_or_404
 
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework import views, status
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
-from rest_framework.serializers import ValidationError
-from rest_framework import views, status
 
-from core.utils import custom_exception_handler
-from users.utils import send_OTP_using_vonage
+from core.throttles import OtpBurstRateThrottle, ApiBurstRateThrottle, OtpSustainedRateThrottle
 
+from .utils import send_OTP_using_vonage
 from .models import Otp
+from .schemas import list_of_strings_schema, object_of_string_schema
 from .serializers import (
     LogoutSerializer,
     OTPVerificationSerializer,
     ResendOTPSerializer,
-    SignUpSerializer
+    SignUpSerializer,
+    UserSerializer
 )
 
 
 # Create your views here.
 class SignUpView(views.APIView):
     permission_classes = []
-    serializer_class = SignUpSerializer
+    parser_classes = [MultiPartParser, FormParser]
+    throttle_classes = [ApiBurstRateThrottle, OtpSustainedRateThrottle]
+
+    def get_permissions(self):
+        if self.request.method == 'PATCH':
+            return [IsAuthenticated()]
+        return [AllowAny()]
 
     @transaction.atomic
     @swagger_auto_schema(
@@ -39,7 +48,8 @@ class SignUpView(views.APIView):
                     "application/json": {
                         "message": "OTP sent successfully, check your messages for verification"
                     }
-                }
+                },
+                schema=object_of_string_schema("message")
             ),
             400: openapi.Response(
                 description="Validation Errors",
@@ -48,12 +58,13 @@ class SignUpView(views.APIView):
                         {
                             "phone_number": ["Enter a valid Phone number."],
                         }
-                }
+                },
+                schema=list_of_strings_schema("phone_number")
             ),
         },
     )
     def post(self, request):
-        serializer = self.serializer_class(data=request.data)
+        serializer = SignUpSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
@@ -80,6 +91,38 @@ class SignUpView(views.APIView):
             status=status.HTTP_201_CREATED,
         )
 
+    @swagger_auto_schema(
+        tags=["Authentication"],
+        request_body=UserSerializer,
+        operation_summary="Updates user attributes",
+        operation_description="Update user attributes",
+        responses={
+            200: UserSerializer,
+            400: openapi.Response(
+                description="Validation Errors",
+                examples={
+                    "application/json":
+                        {
+                            "name": ["Name should be at most 20 characters long"],
+                        },
+                },
+                schema=list_of_strings_schema("name")
+            ),
+            401: openapi.Response(description="Authentication required"),
+            404: openapi.Response(description="User not found"),
+        },
+    )
+    def patch(self, request):
+        print("Files:", request.FILES)
+        print("profile_picture in data:", 'profile_picture' in request.data)
+        print("profile_picture value:", request.data.get('profile_picture'))
+        user = request.user
+        serializer = UserSerializer(user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response({'data': serializer.data, 'message': 'updated user successfully'})
+
 
 class ResendOTPView(views.APIView):
     """
@@ -87,6 +130,7 @@ class ResendOTPView(views.APIView):
     """
     serializer_class = ResendOTPSerializer
     permission_classes = []
+    throttle_classes = [OtpBurstRateThrottle, OtpSustainedRateThrottle]
 
     @swagger_auto_schema(
         tags=['Authentication'],
@@ -100,16 +144,20 @@ class ResendOTPView(views.APIView):
                     "application/json": {
                         "message": "OTP resent successfully"
                     }
-                }
+                },
+                schema=object_of_string_schema("message")
             ),
             400: openapi.Response(
                 description="Validation Errors",
                 examples={
                     "application/json": {
-                        "phone_number": "Phone Number does not exist.",
-                        "phine_number": "Enter a valid Phone number."
-                    }
-                }
+                            "phone_number": [
+                                "Phone Number does not exist.",
+                                "Enter a valid Phone number."
+                            ],
+                    },
+                },
+                schema=list_of_strings_schema("phone_number")
             ),
         },
     )
@@ -159,6 +207,7 @@ class OTPVerificationView(views.APIView):
         user = validated_data['user']
 
         # set email as verified
+        authenticate(user)
         user.phone_verified = True
         user.save()
 

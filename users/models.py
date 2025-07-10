@@ -1,5 +1,4 @@
 import datetime
-import re
 import random
 import uuid
 
@@ -8,6 +7,10 @@ from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+
+from core.models import TimeStampedModel
+
+from .utils import verify_phone_number_format
 
 
 # Create your models here.
@@ -19,8 +22,7 @@ class CustomUserManager(BaseUserManager):
         if not phone_number:
             raise DjangoValidationError('Phone number is required')
 
-        phone_regex = re.compile(r'^\+?1?\d{9,15}$')
-        if not phone_regex.match(phone_number):
+        if not verify_phone_number_format(phone_number):
             raise DjangoValidationError('Enter a valid phone number')
 
         return phone_number
@@ -54,7 +56,10 @@ class CustomUserManager(BaseUserManager):
 
 class CustomUser(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=150)
+    name = models.CharField(max_length=20)
+    description = models.CharField(max_length=225, null=True, blank=True)
+    profile_picture = models.ImageField(
+        upload_to='user/profile', null=True, blank=True)
     phone_number = models.CharField(
         max_length=15, unique=True, null=False, blank=False)
     phone_verified = models.BooleanField(default=False)
@@ -70,17 +75,8 @@ class CustomUser(AbstractUser):
         return self.phone_number
 
 
-class TimeStampedModel(models.Model):
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        abstract = True
-        ordering = ['-created_at']
-
-
 class Otp(TimeStampedModel):
-    otp = models.CharField(max_length=4)
+    otp = models.CharField(max_length=6)
     user = models.ForeignKey(settings.AUTH_USER_MODEL,
                              on_delete=models.CASCADE)
     expires_at = models.DateTimeField()
@@ -98,7 +94,7 @@ class Otp(TimeStampedModel):
         return f"{self.otp} - {self.user.phone_number}"
 
     @classmethod
-    def generate_otp(cls, user, expiry_minutes=10):
+    def generate_otp(cls, user, expiry_minutes=2):
         """
         Generate a new OTP for the given user
         """
@@ -110,7 +106,7 @@ class Otp(TimeStampedModel):
         ).update(is_used=True)
 
         # Generate a new OTP
-        otp_code = ''.join([str(random.randint(0, 9)) for _ in range(4)])
+        otp_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
         expires_at = timezone.now() + datetime.timedelta(minutes=expiry_minutes)
 
         # Create and save new OTP
