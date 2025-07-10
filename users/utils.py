@@ -1,6 +1,26 @@
+import cloudinary.uploader
+import re
 import requests
 
 from decouple import config
+
+
+def deleteImageInCloudinary(image):
+    try:
+        print(image.name)
+        print(cloudinary.config())
+        cloudinary.uploader.destroy(image.name)
+        print("deleted successfully")
+    except Exception as e:
+        # Log error but continue with update
+        print(f"Error deleting old image: {e}")
+
+
+def verify_phone_number_format(phone_number):
+    phone_regex = re.compile(r'^\+?1?\d{9,15}$')
+    if not phone_regex.match(phone_number):
+        return False
+    return True
 
 
 def send_OTP_using_vonage(phone_number, otp):

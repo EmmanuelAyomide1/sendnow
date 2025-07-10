@@ -2,6 +2,8 @@ from django.contrib.auth import get_user_model
 
 from rest_framework import serializers
 
+from users.utils import verify_phone_number_format
+
 from .models import Otp
 
 
@@ -13,7 +15,14 @@ class SignUpSerializer(serializers.ModelSerializer):
         fields = ["phone_number",]
 
     def validate_phone_number(self, value):
-        return value
+        if not verify_phone_number_format(value):
+            raise serializers.ValidationError(
+                f'Enter a valid phone number, example "+2341234567345"')
+
+        # Format number
+        phone_number = value.replace("+", "")
+        phone_number = '+' + phone_number[:3] + phone_number[3::].lstrip("0")
+        return phone_number
 
     def create(self, validated_data):
         print(validated_data['phone_number'])
@@ -23,6 +32,17 @@ class SignUpSerializer(serializers.ModelSerializer):
             ).first()
             or get_user_model().objects.create_user(**validated_data)
         )
+
+
+class UserSerializer(serializers.ModelSerializer):
+    profile_picture = serializers.ImageField(required=False, allow_null=True)
+
+    class Meta:
+        model = get_user_model()
+        fields = ['id', 'name', 'description', 'profile_picture']
+        extra_kwargs = {
+            "name": {'required': False}
+        }
 
 
 class ResendOTPSerializer(serializers.Serializer):
@@ -58,6 +78,7 @@ class OTPVerificationSerializer(serializers.Serializer):
                 raise serializers.ValidationError('Invalid OTP')
 
         except Exception as e:
+            print(str(e))
             raise serializers.ValidationError('Invalid OTP or Phone Number')
 
 
