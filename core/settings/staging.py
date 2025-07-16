@@ -18,7 +18,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:3001",
     "http://localhost:5173"
-    # "https://frontend.app",
+    "https://sendnow-amber.vercel.app",
 ]
 
 CORS_ORIGIN_WHITELIST = (
@@ -26,11 +26,11 @@ CORS_ORIGIN_WHITELIST = (
     "http://localhost:3001",
     "http://localhost:5173",
     "http://localhost:8000",
-    # "https://frontend.app",
+    "https://sendnow-amber.vercel.app",
 )
 
 CSRF_TRUSTED_ORIGINS = [
-    # "https://frontend.app",
+    "https://sendnow-amber.vercel.app",
     "https://localhost:3000",
     "http://localhost:3001",
     "http://localhost:5173"
