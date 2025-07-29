@@ -1,3 +1,4 @@
+import base64
 import cloudinary.uploader
 import re
 import requests
@@ -53,6 +54,43 @@ def send_OTP_using_vonage(phone_number, otp):
     )
     print("response", response.text)
     if response.status_code == 202:
+        return True
+    else:
+        return False
+
+
+def send_sms_using_africa_talk(phone_number, otp):
+    """
+    Sends an OTP to the given phone number using the BulkSMS API.
+    """
+
+    # clean up phone number
+    phone_number = phone_number.replace(
+        "+", "").replace(" ", "")
+    phone_number = "+" + phone_number[:3] + phone_number[3::].lstrip("0")
+
+    print("phone_number", phone_number)
+
+    url = "https://api.sandbox.africastalking.com//version1/messaging"
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+        "apikey": config("AFRICA_TALK_API_KEY")
+    }
+    payload = {
+        "username": "sandbox",
+        "to": phone_number,
+        "message": f"Welcome to sendnow , Your OTP is {otp}. Do not share this OTP with anyone.",
+        "senderId": "SendNow",
+    }
+
+    response = requests.post(
+        url,
+        data=payload,
+        headers=headers,
+    )
+    print("response", response.text)
+    if response.status_code == 201:
         return True
     else:
         return False

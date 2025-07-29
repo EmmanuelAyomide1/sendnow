@@ -77,7 +77,7 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "core.utils.custom_exception_handler",
     'DEFAULT_THROTTLE_RATES': {
         'otp-burst': '1/min',
-        'otp-sustained': '4/day',
+        'otp-sustained': '5/day',
         'burst': '3/min',
         'sustained': '10/day'
     }

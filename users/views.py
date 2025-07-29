@@ -12,7 +12,7 @@ from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 
 from core.throttles import OtpBurstRateThrottle, ApiBurstRateThrottle, OtpSustainedRateThrottle
 
-from .utils import send_OTP_using_vonage
+from .utils import send_sms_using_africa_talk
 from .models import Otp
 from .schemas import list_of_strings_schema, object_of_string_schema
 from .serializers import (
@@ -72,7 +72,7 @@ class SignUpView(views.APIView):
         user = serializer.instance
         otp_obj = Otp.generate_otp(user=user)
 
-        sent = send_OTP_using_vonage(
+        sent = send_sms_using_africa_talk(
             phone_number=serializer.validated_data['phone_number'],
             otp=otp_obj.otp
         )
@@ -167,7 +167,7 @@ class ResendOTPView(views.APIView):
 
         user = serializer.user
         otp_obj = Otp.generate_otp(user=user)
-        sent = send_OTP_using_vonage(
+        sent = send_sms_using_africa_talk(
             phone_number=serializer.validated_data['phone_number'],
             otp=otp_obj.otp
         )

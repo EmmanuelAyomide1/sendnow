@@ -1,13 +1,13 @@
-from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.throttling import UserRateThrottle
 
 
-class ApiBurstRateThrottle(ScopedRateThrottle):
+class ApiBurstRateThrottle(UserRateThrottle):
     scope = 'burst'
 
 
-class OtpBurstRateThrottle(ScopedRateThrottle):
+class OtpBurstRateThrottle(UserRateThrottle):
     scope = 'otp-burst'
 
 
-class OtpSustainedRateThrottle(ScopedRateThrottle):
+class OtpSustainedRateThrottle(UserRateThrottle):
     scope = 'otp-sustained'
