@@ -1,4 +1,3 @@
-import base64
 import cloudinary.uploader
 import re
 import requests
