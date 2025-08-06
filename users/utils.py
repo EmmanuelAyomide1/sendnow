@@ -23,6 +23,14 @@ def verify_phone_number_format(phone_number):
     return True
 
 
+def format_phone_number(phone_number):
+    formatted_phone_number = phone_number.replace(
+        "+", "").replace(" ", "")
+    formatted_phone_number = "+" + \
+        formatted_phone_number[:3] + formatted_phone_number[3::].lstrip("0")
+    return formatted_phone_number
+
+
 def send_OTP_using_vonage(phone_number, otp):
     """
     Sends an OTP to the given phone number using the BulkSMS API.
@@ -64,9 +72,7 @@ def send_sms_using_africa_talk(phone_number, otp):
     """
 
     # clean up phone number
-    phone_number = phone_number.replace(
-        "+", "").replace(" ", "")
-    phone_number = "+" + phone_number[:3] + phone_number[3::].lstrip("0")
+    phone_number = format_phone_number(phone_number)
 
     print("phone_number", phone_number)
 

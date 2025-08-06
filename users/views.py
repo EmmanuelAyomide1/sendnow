@@ -1,39 +1,37 @@
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, get_user_model
 from django.db import transaction
 
+from django.shortcuts import get_object_or_404
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import views, status
-from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework import status, views, viewsets, mixins
+from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
+from core.permissions import IsAuthenticationAndRegistered
 from core.throttles import OtpBurstRateThrottle, ApiBurstRateThrottle, OtpSustainedRateThrottle
 
-from .utils import send_sms_using_africa_talk
-from .models import Otp
+from .utils import format_phone_number, send_sms_using_africa_talk
+from .models import Otp, SavedContact
 from .schemas import list_of_strings_schema, object_of_string_schema
 from .serializers import (
     LogoutSerializer,
     OTPVerificationSerializer,
     ResendOTPSerializer,
+    SavedContactSerializer,
     SignUpSerializer,
     UserSerializer
 )
 
 
 # Create your views here.
-class SignUpView(views.APIView):
-    permission_classes = []
-    parser_classes = [MultiPartParser, FormParser]
+class VerifyPhoneNumberView(views.APIView):
+    permission_classes = [AllowAny]
     throttle_classes = [ApiBurstRateThrottle, OtpSustainedRateThrottle]
-
-    def get_permissions(self):
-        if self.request.method == 'PATCH':
-            return [IsAuthenticated()]
-        return [AllowAny()]
 
     @transaction.atomic
     @swagger_auto_schema(
@@ -86,42 +84,9 @@ class SignUpView(views.APIView):
 
         return Response({
             "message": "OTP sent successfully, check your message for verification",
-            "new_user": not user.phone_verified
         },
             status=status.HTTP_201_CREATED,
         )
-
-    @swagger_auto_schema(
-        tags=["Authentication"],
-        request_body=UserSerializer,
-        operation_summary="Updates user attributes",
-        operation_description="Update user attributes",
-        responses={
-            200: UserSerializer,
-            400: openapi.Response(
-                description="Validation Errors",
-                examples={
-                    "application/json":
-                        {
-                            "name": ["Name should be at most 20 characters long"],
-                        },
-                },
-                schema=list_of_strings_schema("name")
-            ),
-            401: openapi.Response(description="Authentication required"),
-            404: openapi.Response(description="User not found"),
-        },
-    )
-    def patch(self, request):
-        print("Files:", request.FILES)
-        print("profile_picture in data:", 'profile_picture' in request.data)
-        print("profile_picture value:", request.data.get('profile_picture'))
-        user = request.user
-        serializer = UserSerializer(user, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        return Response({'data': serializer.data, 'message': 'updated user successfully'})
 
 
 class ResendOTPView(views.APIView):
@@ -206,8 +171,10 @@ class OTPVerificationView(views.APIView):
         validated_data = serializer.validated_data
         user = validated_data['user']
 
-        # set email as verified
+        # authenticate user
         authenticate(user)
+
+        # set phone_number as verified
         user.phone_verified = True
         user.save()
 
@@ -216,6 +183,7 @@ class OTPVerificationView(views.APIView):
 
         return Response({
             'message': 'OTP Verified successfully',
+            'new_user': not bool(user.name),
             "tokens": {
                 "access_token": access_token,
                 "refresh_token": str(refresh)
@@ -257,7 +225,7 @@ class RefreshTokenView(views.APIView):
 
 
 class LogoutView(views.APIView):
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
     serializer_class = LogoutSerializer
 
     @swagger_auto_schema(
@@ -285,3 +253,65 @@ class LogoutView(views.APIView):
             return Response({'message': 'Invalid refresh token'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'message': 'Could not log out'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class UserViewset(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
+    queryset = get_user_model().objects.all()
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    serializer_class = UserSerializer
+    search_fields = ["name"]
+    lookup_field = "phone_number"
+
+    def get_permissions(self):
+        if self.request.method == 'PATCH':
+            return [IsAuthenticated()]
+        return [IsAuthenticationAndRegistered()]
+
+    def get_object(self):
+        phone_number = self.kwargs.get(self.lookup_field)
+        phone_number = format_phone_number(phone_number)
+        return get_object_or_404(get_user_model(), phone_number=phone_number)
+
+    @swagger_auto_schema(
+        request_body=UserSerializer,
+        operation_summary="Updates user attributes",
+        operation_description="Update user attributes",
+        responses={
+            200: UserSerializer,
+            400: openapi.Response(
+                description="Validation Errors",
+                examples={
+                    "application/json":
+                        {
+                            "name": ["Name should be at most 20 characters long"],
+                        },
+                },
+                schema=list_of_strings_schema("name")
+            ),
+            401: openapi.Response(description="Authentication required"),
+            404: openapi.Response(description="User not found"),
+        },
+    )
+    @action(detail=False, methods=['patch'], url_path='profile')
+    def update_profile(self, request):
+        print("Files:", request.FILES)
+        print("profile_picture in data:", 'profile_picture' in request.data)
+        print("profile_picture value:", request.data.get('profile_picture'))
+        serializer = self.get_serializer(
+            request.user,
+            data=request.data,
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response({'data': serializer.data, 'message': 'updated user successfully'})
+
+
+class SavedContactsViewset(viewsets.ModelViewSet):
+    queryset = SavedContact.objects.all()
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "post", "delete"]
+    search_fields = ["contact__phone_number", "contact__name"]
+    serializer_class = SavedContactSerializer

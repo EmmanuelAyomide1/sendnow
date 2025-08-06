@@ -2,9 +2,9 @@ from django.contrib.auth import get_user_model
 
 from rest_framework import serializers
 
-from users.utils import verify_phone_number_format
+from users.utils import format_phone_number, verify_phone_number_format
 
-from .models import Otp
+from .models import Otp, SavedContact
 
 
 class SignUpSerializer(serializers.ModelSerializer):
@@ -20,8 +20,7 @@ class SignUpSerializer(serializers.ModelSerializer):
                 f'Enter a valid phone number, example "+2341234567345"')
 
         # Format number
-        phone_number = value.replace("+", "")
-        phone_number = '+' + phone_number[:3] + phone_number[3::].lstrip("0")
+        phone_number = format_phone_number(value)
         return phone_number
 
     def create(self, validated_data):
@@ -39,10 +38,22 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = get_user_model()
-        fields = ['id', 'name', 'description', 'profile_picture']
-        extra_kwargs = {
-            "name": {'required': False}
-        }
+        fields = ['id', 'name', 'description',
+                  'profile_picture']
+        # extra_kwargs = {
+        #     "phone_number": {'read_only': True}
+        # }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Check context to determine if this is for registration
+        request = self.context.get('request')
+        if request and hasattr(request, 'user') and request.user.is_authenticated:
+            user = request.user
+
+            if user.name:
+                self.fields['name'].required = False
 
 
 class ResendOTPSerializer(serializers.Serializer):
@@ -64,6 +75,7 @@ class OTPVerificationSerializer(serializers.Serializer):
     def validate(self, attrs):
         code = attrs.get('code')
         phone_number = attrs.get('phone_number')
+        phone_number = format_phone_number(phone_number)
 
         try:
             user = get_user_model().objects.get(phone_number=phone_number)
@@ -84,3 +96,19 @@ class OTPVerificationSerializer(serializers.Serializer):
 
 class LogoutSerializer(serializers.Serializer):
     refresh_token = serializers.CharField()
+
+
+class SavedContactSerializer(serializers.ModelSerializer):
+    contact = serializers.SerializerMethodField("get_contact")
+    contact_id = serializers.PrimaryKeyRelatedField(
+        queryset=get_user_model().objects.all(), write_only=True)
+
+    class Meta:
+        model = SavedContact
+        fields = ["id", "contact", "contact_id"]
+
+    def get_contact(self, obj):
+        return {
+            "name": obj.contact.name,
+            "phone_number": obj.contact.phone_number,
+        }
