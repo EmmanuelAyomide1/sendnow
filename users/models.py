@@ -3,6 +3,7 @@ import random
 import uuid
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.conf import settings
 from django.db import models
@@ -147,3 +148,11 @@ class Otp(TimeStampedModel):
             return True
         except cls.DoesNotExist:
             return False
+
+
+class SavedContact(TimeStampedModel):
+    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
+    user = models.ForeignKey(
+        get_user_model(), on_delete=models.CASCADE, related_name="saved_contacts")
+    contact = models.ForeignKey(
+        get_user_model(), on_delete=models.CASCADE, related_name="in_saved_contacts")
