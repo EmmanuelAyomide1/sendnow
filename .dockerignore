@@ -1,0 +1,17 @@
+Dockerfile
+
+# Ignore .git folder
+.git
+.DS_Store
+DS*
+*/migrations/*
+!**/migrations
+!**/migrations/__init__.py
+venv/
+.history/
+__pycache__/
+.idea/
+.vscode/
+
+# Ignore devspace.yaml file to prevent image rebuilding after config changes
+devspace.yaml

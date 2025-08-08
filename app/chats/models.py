@@ -22,7 +22,7 @@ class Chat(TimeStampedModel):
                             default=ChatTypes.individual,
                             max_length=10)
     profile_picture = models.ImageField(
-        upload_to='/chats/profile', null=True, blank=True)
+        upload_to='chats/profile', null=True, blank=True)
     is_deleted = models.BooleanField(default=False)
     created_by = models.ForeignKey(
         get_user_model(), on_delete=models.SET_NULL, related_name="created_chats", null=True, blank=True)
@@ -94,4 +94,4 @@ class MessageMedia(TimeStampedModel):
     message = models.ForeignKey(
         Message, on_delete=models.CASCADE, related_name="media")
     type = models.CharField(choices=MediaType.choices, max_length=10)
-    file = models.FileField(upload_to='/messages/media')
+    file = models.FileField(upload_to='messages/media')
