@@ -101,7 +101,10 @@ class ResendOTPView(views.APIView):
 
     serializer_class = ResendOTPSerializer
     permission_classes = []
-    throttle_classes = [OtpBurstRateThrottle, OtpSustainedRateThrottle]
+    throttle_classes = [
+        OtpBurstRateThrottle,
+        # OtpSustainedRateThrottle
+    ]
 
     @swagger_auto_schema(
         tags=["Authentication"],
@@ -293,7 +296,9 @@ class UserViewset(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     def get_object(self):
         phone_number = self.kwargs.get(self.lookup_field)
         phone_number = format_phone_number(phone_number)
-        return get_object_or_404(get_user_model(), phone_number=phone_number)
+        return get_object_or_404(
+            get_user_model(), phone_number=phone_number, name__isnull=False
+        )
 
     @swagger_auto_schema(
         request_body=UserSerializer,

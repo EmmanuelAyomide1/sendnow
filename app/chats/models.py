@@ -52,14 +52,11 @@ class ChatParticipant(TimeStampedModel):
 class Message(TimeStampedModel):
 
     class MessageType(models.TextChoices):
-        audio = "Audio", "A"
-        video = "Video", "V"
-        image = "Image", "I"
-        document = "Document", "D"
+        media = "Media", "M"
         text = "Text", "T"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    text = models.TextField(null=True, blank=True)
+    text = models.TextField(null=True, blank=False)
     is_deleted = models.BooleanField(default=False)
     type = models.CharField(
         choices=MessageType.choices, default=MessageType.text, max_length=10
@@ -68,9 +65,10 @@ class Message(TimeStampedModel):
         "self", on_delete=models.CASCADE, null=True, blank=True, related_name="replies"
     )
     is_forwarded = models.BooleanField(default=False)
-    conversation = models.ForeignKey(
-        get_user_model(), on_delete=models.CASCADE, related_name="messages"
+    sender = models.ForeignKey(
+        get_user_model(), on_delete=models.CASCADE, related_name="sent_messages"
     )
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name="messages")
 
 
 class MessageStatus(TimeStampedModel):
