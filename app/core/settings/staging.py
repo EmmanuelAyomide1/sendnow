@@ -42,6 +42,8 @@ CSRF_TRUSTED_ORIGINS = [
 
 INSTALLED_APPS += [
     "corsheaders",
+    "app.chats",
+    "app.users",
 ]
 
 
