@@ -19,7 +19,7 @@ from django.core.asgi import get_asgi_application
 from .middleware import JWTAuthMiddleware
 
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings.staging")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "app.core.settings.staging")
 
 application = ProtocolTypeRouter(
     {
