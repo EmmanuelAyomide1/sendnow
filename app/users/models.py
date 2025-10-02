@@ -21,10 +21,10 @@ class CustomUserManager(BaseUserManager):
         Phone number validation
         """
         if not phone_number:
-            raise DjangoValidationError('Phone number is required')
+            raise DjangoValidationError("Phone number is required")
 
         if not verify_phone_number_format(phone_number):
-            raise DjangoValidationError('Enter a valid phone number')
+            raise DjangoValidationError("Enter a valid phone number")
 
         return phone_number
 
@@ -39,56 +39,59 @@ class CustomUserManager(BaseUserManager):
             user.set_password(password)
         else:
             user.set_unusable_password()
+
         user.save(using=self._db)
         return user
 
     def create_superuser(self, phone_number, password, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('phone_verified', True)
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("phone_verified", True)
 
-        if extra_fields.get('is_staff') is not True:
-            raise ValueError('Superuser must have is_staff=True.')
-        if extra_fields.get('is_superuser') is not True:
-            raise ValueError('Superuser must have is_superuser=True.')
+        if extra_fields.get("is_staff") is not True:
+            raise ValueError("Superuser must have is_staff=True.")
+        if extra_fields.get("is_superuser") is not True:
+            raise ValueError("Superuser must have is_superuser=True.")
 
         return self.create_user(phone_number, password, **extra_fields)
 
 
 class CustomUser(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=20)
+    name = models.CharField(max_length=20, null=True, blank=True)
     description = models.CharField(max_length=225, null=True, blank=True)
-    profile_picture = models.ImageField(
-        upload_to='user/profile', null=True, blank=True)
-    phone_number = models.CharField(
-        max_length=15, unique=True, null=False, blank=False)
+    profile_picture = models.ImageField(upload_to="user/profile", null=True, blank=True)
+    phone_number = models.CharField(max_length=15, unique=True, null=False, blank=False)
+    last_seen = models.DateTimeField(null=False, blank=False, default=timezone.now)
     phone_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     objects = CustomUserManager()
 
     username = None
-    USERNAME_FIELD = 'phone_number'
+    USERNAME_FIELD = "phone_number"
     REQUIRED_FIELDS = []
 
     def __str__(self):
         return self.phone_number
 
+    @property
+    def online(self):
+        return timezone.now() - self.last_seen < datetime.timedelta(seconds=30)
+
 
 class Otp(TimeStampedModel):
     otp = models.CharField(max_length=6)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL,
-                             on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     expires_at = models.DateTimeField()
     is_used = models.BooleanField(default=False)
 
     class Meta:
-        verbose_name = 'OTP'
-        verbose_name_plural = 'OTPs'
+        verbose_name = "OTP"
+        verbose_name_plural = "OTPs"
         indexes = [
-            models.Index(fields=['user', 'is_used']),
-            models.Index(fields=['expires_at']),
+            models.Index(fields=["user", "is_used"]),
+            models.Index(fields=["expires_at"]),
         ]
 
     def __str__(self):
@@ -101,21 +104,15 @@ class Otp(TimeStampedModel):
         """
         # Invalidate existing unused OTPs for this user and purpose
         cls.objects.filter(
-            user=user,
-            is_used=False,
-            expires_at__gt=timezone.now()
+            user=user, is_used=False, expires_at__gt=timezone.now()
         ).update(is_used=True)
 
         # Generate a new OTP
-        otp_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+        otp_code = "".join([str(random.randint(0, 9)) for _ in range(6)])
         expires_at = timezone.now() + datetime.timedelta(minutes=expiry_minutes)
 
         # Create and save new OTP
-        otp_obj = cls.objects.create(
-            otp=otp_code,
-            user=user,
-            expires_at=expires_at
-        )
+        otp_obj = cls.objects.create(otp=otp_code, user=user, expires_at=expires_at)
 
         return otp_obj
 
@@ -130,7 +127,7 @@ class Otp(TimeStampedModel):
         Mark the OTP as used
         """
         self.is_used = True
-        self.save(update_fields=['is_used', 'updated_at'])
+        self.save(update_fields=["is_used", "updated_at"])
 
     @classmethod
     def verify_otp(cls, user, otp_code):
@@ -139,10 +136,7 @@ class Otp(TimeStampedModel):
         """
         try:
             otp_obj = cls.objects.get(
-                user=user,
-                otp=otp_code,
-                is_used=False,
-                expires_at__gt=timezone.now()
+                user=user, otp=otp_code, is_used=False, expires_at__gt=timezone.now()
             )
             otp_obj.use()
             return True
@@ -153,6 +147,12 @@ class Otp(TimeStampedModel):
 class SavedContact(TimeStampedModel):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     user = models.ForeignKey(
-        get_user_model(), on_delete=models.CASCADE, related_name="saved_contacts")
+        get_user_model(), on_delete=models.CASCADE, related_name="saved_contacts"
+    )
     contact = models.ForeignKey(
-        get_user_model(), on_delete=models.CASCADE, related_name="in_saved_contacts")
+        get_user_model(), on_delete=models.CASCADE, related_name="in_saved_contacts"
+    )
+
+    class Meta:
+        unique_together = ("user", "contact")
+        indexes = [models.Index(fields=["user", "contact"])]

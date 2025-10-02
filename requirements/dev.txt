@@ -1,3 +1,0 @@
--r base.txt
-
-django-seed==0.3.1

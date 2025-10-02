@@ -1,7 +1,7 @@
 from django.contrib.auth import authenticate, get_user_model
 from django.db import transaction
-
 from django.shortcuts import get_object_or_404
+
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status, views, viewsets, mixins
@@ -13,7 +13,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
 from core.permissions import IsAuthenticationAndRegistered
-from core.throttles import OtpBurstRateThrottle, ApiBurstRateThrottle, OtpSustainedRateThrottle
+from core.throttles import (
+    OtpBurstRateThrottle,
+    ApiBurstRateThrottle,
+    OtpSustainedRateThrottle,
+)
 
 from .utils import format_phone_number, send_sms_using_africa_talk
 from .models import Otp, SavedContact
@@ -24,7 +28,7 @@ from .serializers import (
     ResendOTPSerializer,
     SavedContactSerializer,
     SignUpSerializer,
-    UserSerializer
+    UserSerializer,
 )
 
 
@@ -47,17 +51,16 @@ class VerifyPhoneNumberView(views.APIView):
                         "message": "OTP sent successfully, check your messages for verification"
                     }
                 },
-                schema=object_of_string_schema("message")
+                schema=object_of_string_schema("message"),
             ),
             400: openapi.Response(
                 description="Validation Errors",
                 examples={
-                    "application/json":
-                        {
-                            "phone_number": ["Enter a valid Phone number."],
-                        }
+                    "application/json": {
+                        "phone_number": ["Enter a valid Phone number."],
+                    }
                 },
-                schema=list_of_strings_schema("phone_number")
+                schema=list_of_strings_schema("phone_number"),
             ),
         },
     )
@@ -71,20 +74,22 @@ class VerifyPhoneNumberView(views.APIView):
         otp_obj = Otp.generate_otp(user=user)
 
         sent = send_sms_using_africa_talk(
-            phone_number=serializer.validated_data['phone_number'],
-            otp=otp_obj.otp
+            phone_number=serializer.validated_data["phone_number"], otp=otp_obj.otp
         )
-        print("OTP sent to user", {
-            "phone_number": user.phone_number,
-            "otp": otp_obj.otp
-        })
+        print(
+            "OTP sent to user", {"phone_number": user.phone_number, "otp": otp_obj.otp}
+        )
 
         if not sent:
-            return Response({'message': 'Enter a valid Phone number'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"message": "Enter a valid Phone number"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        return Response({
-            "message": "OTP sent successfully, check your message for verification",
-        },
+        return Response(
+            {
+                "message": "OTP sent successfully, check your message for verification",
+            },
             status=status.HTTP_201_CREATED,
         )
 
@@ -93,36 +98,36 @@ class ResendOTPView(views.APIView):
     """
     Resends the OTP to the user
     """
+
     serializer_class = ResendOTPSerializer
     permission_classes = []
-    throttle_classes = [OtpBurstRateThrottle, OtpSustainedRateThrottle]
+    throttle_classes = [
+        OtpBurstRateThrottle,
+        # OtpSustainedRateThrottle
+    ]
 
     @swagger_auto_schema(
-        tags=['Authentication'],
+        tags=["Authentication"],
         request_body=serializer_class,
-        operation_summary='Resend OTP',
-        operation_description='Resends the OTP to the user via email.',
+        operation_summary="Resend OTP",
+        operation_description="Resends the OTP to the user via email.",
         responses={
             200: openapi.Response(
                 description="OTP resent successfully",
-                examples={
-                    "application/json": {
-                        "message": "OTP resent successfully"
-                    }
-                },
-                schema=object_of_string_schema("message")
+                examples={"application/json": {"message": "OTP resent successfully"}},
+                schema=object_of_string_schema("message"),
             ),
             400: openapi.Response(
                 description="Validation Errors",
                 examples={
                     "application/json": {
-                            "phone_number": [
-                                "Phone Number does not exist.",
-                                "Enter a valid Phone number."
-                            ],
+                        "phone_number": [
+                            "Phone Number does not exist.",
+                            "Enter a valid Phone number.",
+                        ],
                     },
                 },
-                schema=list_of_strings_schema("phone_number")
+                schema=list_of_strings_schema("phone_number"),
             ),
         },
     )
@@ -133,24 +138,29 @@ class ResendOTPView(views.APIView):
         user = serializer.user
         otp_obj = Otp.generate_otp(user=user)
         sent = send_sms_using_africa_talk(
-            phone_number=serializer.validated_data['phone_number'],
-            otp=otp_obj.otp
+            phone_number=serializer.validated_data["phone_number"], otp=otp_obj.otp
         )
-        print("OTP resent to user", {
-            "phone_number": user.phone_number,
-            "otp": otp_obj.otp
-        })
+        print(
+            "OTP resent to user",
+            {"phone_number": user.phone_number, "otp": otp_obj.otp},
+        )
 
         if not sent:
-            return Response({'message': 'Enter a valid Phone number'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"message": "Enter a valid Phone number"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        return Response({'message': 'OTP resent successfully'}, status=status.HTTP_200_OK)
+        return Response(
+            {"message": "OTP resent successfully"}, status=status.HTTP_200_OK
+        )
 
 
 class OTPVerificationView(views.APIView):
     """
     Verifies a user by validating an OTP
     """
+
     serializer_class = OTPVerificationSerializer
     permission_classes = []
 
@@ -169,7 +179,7 @@ class OTPVerificationView(views.APIView):
         serializer.is_valid(raise_exception=True)
 
         validated_data = serializer.validated_data
-        user = validated_data['user']
+        user = validated_data["user"]
 
         # authenticate user
         authenticate(user)
@@ -181,14 +191,13 @@ class OTPVerificationView(views.APIView):
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
 
-        return Response({
-            'message': 'OTP Verified successfully',
-            'new_user': not bool(user.name),
-            "tokens": {
-                "access_token": access_token,
-                "refresh_token": str(refresh)
+        return Response(
+            {
+                "message": "OTP Verified successfully",
+                "new_user": not bool(user.name),
+                "tokens": {"access_token": access_token, "refresh_token": str(refresh)},
             }
-        })
+        )
 
 
 class RefreshTokenView(views.APIView):
@@ -207,21 +216,27 @@ class RefreshTokenView(views.APIView):
         },
     )
     def post(self, request, *args, **kwargs):
-        refresh_token = request.data.get('refresh_token')
+        refresh_token = request.data.get("refresh_token")
         if not refresh_token:
-            return Response({'message': 'Refresh token not included'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"message": "Refresh token not included"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             refresh = RefreshToken(refresh_token)
             access_token = str(refresh.access_token)
 
-            return Response({'access_token': access_token})
+            return Response({"access_token": access_token})
         except InvalidToken as e:
-            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except TokenError as e:
-            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({'message': f'An error occurred while refreshing token: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"message": f"An error occurred while refreshing token: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class LogoutView(views.APIView):
@@ -242,17 +257,27 @@ class LogoutView(views.APIView):
     def post(self, request, *args, **kwargs):
         refresh_token = request.data.get("refresh_token")
         if not refresh_token:
-            return Response({'message': 'Refresh token not included'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"message": "Refresh token not included"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             refresh = RefreshToken(refresh_token)
             refresh.blacklist()
 
-            return Response({'message': 'Succesfully Logged out'}, status=status.HTTP_200_OK)
+            return Response(
+                {"message": "Succesfully Logged out"}, status=status.HTTP_200_OK
+            )
         except TokenError as e:
-            return Response({'message': 'Invalid refresh token'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"message": "Invalid refresh token"}, status=status.HTTP_400_BAD_REQUEST
+            )
         except Exception as e:
-            return Response({'message': 'Could not log out'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"message": "Could not log out"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class UserViewset(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
@@ -264,14 +289,16 @@ class UserViewset(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     lookup_field = "phone_number"
 
     def get_permissions(self):
-        if self.request.method == 'PATCH':
+        if self.request.method == "PATCH":
             return [IsAuthenticated()]
         return [IsAuthenticationAndRegistered()]
 
     def get_object(self):
         phone_number = self.kwargs.get(self.lookup_field)
         phone_number = format_phone_number(phone_number)
-        return get_object_or_404(get_user_model(), phone_number=phone_number)
+        return get_object_or_404(
+            get_user_model(), phone_number=phone_number, name__isnull=False
+        )
 
     @swagger_auto_schema(
         request_body=UserSerializer,
@@ -282,31 +309,28 @@ class UserViewset(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
             400: openapi.Response(
                 description="Validation Errors",
                 examples={
-                    "application/json":
-                        {
-                            "name": ["Name should be at most 20 characters long"],
-                        },
+                    "application/json": {
+                        "name": ["Name should be at most 20 characters long"],
+                    },
                 },
-                schema=list_of_strings_schema("name")
+                schema=list_of_strings_schema("name"),
             ),
             401: openapi.Response(description="Authentication required"),
             404: openapi.Response(description="User not found"),
         },
     )
-    @action(detail=False, methods=['patch'], url_path='profile')
+    @action(detail=False, methods=["patch"], url_path="profile")
     def update_profile(self, request):
         print("Files:", request.FILES)
-        print("profile_picture in data:", 'profile_picture' in request.data)
-        print("profile_picture value:", request.data.get('profile_picture'))
-        serializer = self.get_serializer(
-            request.user,
-            data=request.data,
-            partial=True
-        )
+        print("profile_picture in data:", "profile_picture" in request.data)
+        print("profile_picture value:", request.data.get("profile_picture"))
+        serializer = self.get_serializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        return Response({'data': serializer.data, 'message': 'updated user successfully'})
+        return Response(
+            {"data": serializer.data, "message": "updated user successfully"}
+        )
 
 
 class SavedContactsViewset(viewsets.ModelViewSet):

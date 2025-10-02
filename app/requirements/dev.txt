@@ -1,0 +1,5 @@
+-r base.txt
+
+Django==4.2.24
+django-seed==0.3.1
+psycopg2-binary==2.9.10
